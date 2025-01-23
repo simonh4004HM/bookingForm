@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload and Extract Data</title>
+    <link rel="stylesheet" href="https://unpkg.com/purecss@2.0.6/build/pure-min.css">
+</head>
+<body>
+    <div class="pure-form">
+        <h1>Upload and Extract Data</h1>
+        <form class="pure-form" action="/" method="post" enctype="multipart/form-data">
+            <label for="file">Choose File:</label>
+            <input type="file" name="file" id="file" required>
+            <button type="submit" class="pure-button pure-button-primary">Upload File</button>
+        </form>
+        <br>
+        {% if uploaded %}
+        <h2>Uploaded File</h2>
+        <p>{{ uploaded }}</p>
+        <form class="pure-form" action="/extract" method="post">
+            <button type="submit" class="pure-button pure-button-secondary">Extract Booking Data</button>
+        </form>
+        {% endif %}
+        {% if json_data %}
+        <h2>Extracted JSON Data</h2>
+        <pre>{{ json_data }}</pre>
+        {% endif %}
+    </div>
+</body>
+</html>
+

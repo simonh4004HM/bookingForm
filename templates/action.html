@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extract Data</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/pure/2.0.6/pure-min.css">
+</head>
+<body>
+    <h1>File Uploaded: {{ filename }}</h1>
+
+    <form action="/extract" method="post" class="pure-form">
+        <input type="hidden" name="filename" value="{{ filename }}">
+        <button type="submit" class="pure-button pure-button-primary">Extract Data</button>
+    </form>
+
+    {% if extracted_data %}
+    <h2>Extracted Data (JSON)</h2>
+    <pre>{{ extracted_data }}</pre>
+    {% endif %}
+
+</body>
+</html>

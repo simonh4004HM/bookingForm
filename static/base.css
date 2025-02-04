@@ -30,3 +30,8 @@ html {
     height: auto;
     display: block;
 }
+
+.headingclass {
+font-size: 22px; //or whatever the actual code is
+color: blue; //or whatever the actual code is
+}

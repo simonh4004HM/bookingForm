@@ -3,29 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload and Extract Data</title>
+    <title> Booking Form Loader </title>
     <link rel="stylesheet" href="https://unpkg.com/purecss@2.0.6/build/pure-min.css">
+
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+    </style>
+    <style>
+        .error {
+            color: red;
+        }
+    </style>
 </head>
 <body>
+<p margin-left: 30px;> Please complete a blank booking form (link below), scan that and upload into this application. We will then present the data in your form and submit to iSell or SinGS. Booking Form: 
+    <a href="/download/bookingFormV1.pdf" download>Download bookingFormTemplateV1</a>
+
+    
+{% if error %}
+    <p class="error"><strong>Error:</strong> {{ error }}
+{% endif %}
+
+{% if user_score %}
+    <p> Thankyou for scoring this file ({{ user_score }}), if you want to test another then choose another file. </p>
+{% endif %}
+        
+</p>    
     <div class="pure-form">
-        <h1>Upload and Extract Data</h1>
+        <h1 style="color:black; font-size: 22px;"> &nbsp; Booking Form Loader &nbsp; </h1>
         <form class="pure-form" action="/" method="post" enctype="multipart/form-data">
-            <label for="file">Choose File:</label>
-            <input type="file" name="file" id="file" required>
-            <button type="submit" class="pure-button pure-button-primary">Upload File</button>
+            <label for="file">&nbsp; 1. Choose File (.jpeg only):</label>
+            <input type="file" name="file" id="file" required style="border: 1px solid #ccc;display: inline-block;padding: 5px 11px;cursor: pointer;background-color: #0078E7;">
+            <button type="submit" class="pure-button pure-button-primary">2. Upload File</button>
         </form>
         <br>
         {% if uploaded %}
-        <h2>Uploaded File</h2>
-        <p>{{ uploaded }}</p>
+        <h2 style="color:black; font-size: 22px;"> &nbsp; Uploaded File</h2>
+        <p>&nbsp;&nbsp;&nbsp;{{ uploaded }}</p>
+
+        <h2 style="color:black; font-size: 22px;"> &nbsp; Extract data from file</h2>
         <form class="pure-form" action="/extract" method="post">
-            <button type="submit" class="pure-button pure-button-secondary">Extract Booking Data</button>
+            <p>&nbsp;&nbsp;<button type="submit" class="pure-button pure-button-primary">&nbsp;3. Extract  Booking Data</button></p>
         </form>
+        <p> &nbsp;&nbsp; (this may take up to a minute) </p>
         {% endif %}
         {% if json_data %}
-        <h2>Extracted JSON Data</h2>
+        <!-- <h2 style="color:black; font-size: 22px;">&nbsp;&nbsp;Extracted JSON Data</h2>
         <pre>{{ json_data }}</pre>
+        -->
+
+        <h2 style="color:black; font-size: 22px;"">&nbsp;&nbsp;JSON Data as Table</h2>
+        <table class="pure-table">
+            <thead>
+                <tr>
+                    <th>Key</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <!-- Loop through the JSON dictionary -->
+                {% for key, value in json_data.items() %}
+                <tr>
+                    <td>{{ key }}</td>
+                    <td>{{ value }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        <p></p>   
+        
+
+        <div class="pure-g">
+            <div class="pure-u-1 pure-u-md-1-3">
+                <h2 style="color:black; font-size: 22px;"">&nbsp;&nbsp;Score the Result</h2>
+                <form class="pure-form" action="/scoreResult" method="POST">
+                    <fieldset>
+                        <label for="score">&nbsp;&nbsp; Score:</label>
+                        <select id="score" name="score" class="pure-input-1-2">
+                            <option value="1">1 - rubbish</option>
+                            <option value="2">2 - useful</option>
+                            <option value="3">3 - spot on</option>
+                        </select>
+                        <button type="submit" class="pure-button pure-button-primary" name='score'>4. Record Score</button>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
         {% endif %}
+    <p></p> 
+        
     </div>
 </body>
 </html>

@@ -26,6 +26,7 @@ workingFilename = 'none'
 displayFilename = 'none'
 # openai.api_key = os.environ['OPENAI_API_KEY']
 openai.api_key = os.getenv("OPENAI_API_KEY")
+# print(f"API Key: {openai.api_key}")
 openAIapi_url = "https://api.openai.com/v1/chat/completions"
 headers = {
     "Content-Type": "application/json",
@@ -83,7 +84,7 @@ def extract_data_from_image(file_path):
         } # EO payload
         response = requests.post(openAIapi_url, headers=headers, json=payload)
         extractedData = response.json()
-        print(f"extract_data_from_image response:")
+        print(f"extract_data_from_image response:{extractedData}")
 
         # return render_template('form_action.html', extracted_data=extractedData, filename=workingFilename)
         return extractedData["choices"][0]["message"]["content"]

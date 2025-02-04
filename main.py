@@ -24,7 +24,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 workingFilename = 'none'
 displayFilename = 'none'
-openai.api_key = os.environ['OPENAI_API_KEY']
+# openai.api_key = os.environ['OPENAI_API_KEY']
+openai.api_key = os.getenv("OPENAI_API_KEY")
 openAIapi_url = "https://api.openai.com/v1/chat/completions"
 headers = {
     "Content-Type": "application/json",

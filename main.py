@@ -29,7 +29,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 openAIapi_url = "https://api.openai.com/v1/chat/completions"
 headers = {
     "Content-Type": "application/json",
-    "Authorization": "Bearer " + openai.api_key
+    "Authorization": "Bearer " + f"{openai.api_key}"
 }
 print(f"headers: {headers}")
 print("working directory" + os.getcwd())

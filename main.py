@@ -12,6 +12,7 @@ from pdf2image import convert_from_path
 from modules.logger import Logger
 from modules.logger import PaperLog   
 from modules.logger import LoggerPerm
+from replit import db        # installed with shell> pip install replit
 
 import pytesseract
 
@@ -31,6 +32,11 @@ ALLOWED_EXTENSIONS = {'jpeg','jpg','pdf'}
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+STORAGE_DIR = "bookingForm/forms/"
+os.makedirs(STORAGE_DIR, exist_ok=True)
+app.config['STORAGE_DIR'] = STORAGE_DIR
+
 
 workingFilename = 'none'
 displayFilename = 'none'
@@ -146,7 +152,17 @@ def home():
             fileJPG = convert_from_path(filePDF_path, output_folder= outputFolder, fmt="jpeg")
             fileJPG[0].save(fileJPG_path)
             workingFilename = filenameJPG
-            loggerPerm.log(f"About to exit /home, with workingFilename:{workingFilename}")
+
+        # ✅ Save the file to Replit's persistent storage
+        # file_path = os.path.join(STORAGE_DIR, file.filename)
+        file_path = os.path.join(STORAGE_DIR, workingFilename)
+        file.save(file_path)
+
+        # ✅ Store the file path in Replit DB (simulating object storage)
+        db[file.filename] = file_path  # Store file reference in Replit DB
+        loggerPerm.log(f"Stored file path in Replit DB file_path:{file_path}, file.filename: {file.filename} ")
+            
+        loggerPerm.log(f"About to exit /home, with workingFilename:{workingFilename}")
         return render_template("home.html", uploaded=f"File '{displayFilename}' uploaded successfully.", json_data=None)
     return render_template("home.html", uploaded=None, json_data=None)
 

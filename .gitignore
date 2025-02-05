@@ -9,6 +9,7 @@ __pycache__/
 # SH additions
 uploads/
 logs/
+bookingForm/
 
 # Distribution / packaging
 .Python

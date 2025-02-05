@@ -186,24 +186,39 @@ def home():
 
             print(f"/home about to convert_from_path with filePDF_path:{filePDF_path} to filenameJPG: {filenameJPG}")
             fileJPG = convert_from_path(filePDF_path, output_folder= outputFolder, fmt="jpeg")
+            generated_files = [os.path.join(outputFolder, f) for f in os.listdir(outputFolder) if f.endswith(".jpg")]
+
+            print(f"Just converted with fileJPG:{fileJPG}, {dir(fileJPG)}, genfiles:{generated_files}")
             fileJPG[0].save(fileJPG_path)
             workingFilename = filenameJPG
             # store filepath/name in Replit DB (or lose track of it)
             db[workingFilename] = fileJPG_path
             print(f"Stored file path in Replit DB fileJPG_path:{fileJPG_path}")
+
+            # loop thru generated_files, adding DB ref where it does not exist
+            existing_files = set(db.keys()) 
+            for filename in generated_files:
+                fileJPG_path = os.path.join(outputFolder, filename)
+
+                if filename not in existing_files:  # ✅ Check if the file is already in Replit DB
+                    db[filename] = fileJPG_path  # ✅ Store new file reference
+                    print(f"✅ Added {filename} to Replit DB.")
+                else:
+                    print(f"⚠️ {filename} already exists in Replit DB, skipping.")
         
         loggerPerm.log(f"About to exit /home, with workingFilename:{workingFilename}")
+        print(f"About to exit /home, with workingFilename:{workingFilename}, displayFilename:{displayFilename}")
         return render_template("home.html", uploaded=f"File '{displayFilename}' uploaded successfully.", json_data=None)
     return render_template("home.html", uploaded=None, json_data=None)
 
 @app.route("/extract", methods=["POST"])
 def extract_booking_data():
     loggerPerm.log("/extract start")
-    uploaded_files = os.listdir(app.config['UPLOAD_FOLDER'])
+    uploaded_files = os.listdir(app.config['STORAGE_DIR'])
     if not uploaded_files:
         return render_template("home.html", uploaded="No uploaded files found!", json_data=None)
 
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], str(workingFilename))
+    file_path = os.path.join(app.config['STORAGE_DIR'], str(workingFilename))
     loggerPerm.log(f"/extract Processing file: {workingFilename}, path:{file_path}")
     extracted_data = extract_data_from_image(workingFilename)
     # print(f"/extract extracted_data: {extracted_data}")
@@ -263,6 +278,7 @@ def delete_file(filename):
 
         # ✅ Check if file exists before deleting
         if os.path.exists(file_path):
+            print(f"about to remove:{file_path}")
             os.remove(file_path)  # ✅ Delete the file
             del db[filename]  # ✅ Remove reference from Replit DB
             return jsonify({"message": f"✅ {filename} deleted successfully!"})
@@ -270,6 +286,7 @@ def delete_file(filename):
             del db[filename]  # ✅ Remove stale entry from DB
             return jsonify({"error": "❌ File not found on disk, reference removed from DB"}), 404
     else:
+        print(f"unable to remove:{filename}")
         return jsonify({"error": "❌ File not found in database"}), 404
 
 @app.route("/tmpDownload/<filename>")

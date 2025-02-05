@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, flash, redirect, url_for, send_from_directory
+from flask import Flask, render_template, request, flash, redirect, url_for, send_from_directory, jsonify
 from werkzeug.utils import secure_filename
 import os
 import json
@@ -37,6 +37,13 @@ STORAGE_DIR = "bookingForm/forms/"
 os.makedirs(STORAGE_DIR, exist_ok=True)
 app.config['STORAGE_DIR'] = STORAGE_DIR
 
+#DOWNLOAD_DIR = "Downloads/"  # ✅ Local storage directory
+#os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+#app.config['DOWNLOAD_DIR'] = DOWNLOAD_DIR
+
+from replit import db
+print(db.keys())  # ✅ See if "test.pdf" is stored
+print(db.get("simpleBookingFormV2.pdf")) 
 
 workingFilename = 'none'
 displayFilename = 'none'
@@ -199,6 +206,21 @@ def scoreResult():
 def download_file(filename):
     # Serve the file from the 'templates' directory
     return send_from_directory(directory="templates", path=filename, as_attachment=True)
+
+@app.route("/files", methods=["GET"])
+def list_files():
+    """List all uploaded files."""
+    stored_files = list(db.keys())  # ✅ Retrieve file references from Replit DB
+    return jsonify({"stored_files": stored_files})
+
+@app.route("/downloadToLocal/<filename>")
+def downloadToLocal(filename):
+    """Serve uploaded files for download."""
+    print(f"downloadToLocal called using STORAGE_DIR:{STORAGE_DIR}, filename:{filename}")
+    if filename in db:
+        # return send_from_directory(DOWNLOAD_DIR, filename, as_attachment=True)
+        return send_from_directory(STORAGE_DIR, filename, as_attachment=True)
+    return "❌ File not found matey", 404
 
 if __name__ == '__main__':
   app.run(host='0.0.0.0', port=5000)

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, flash, redirect, url_for, send_from_directory, jsonify
+from flask import Flask, render_template, request, flash, redirect, url_for, send_from_directory, jsonify, send_file
 from werkzeug.utils import secure_filename
 import os
 import json
@@ -13,6 +13,20 @@ from modules.logger import Logger
 from modules.logger import PaperLog   
 from modules.logger import LoggerPerm
 from replit import db        # installed with shell> pip install replit
+
+from replit.object_storage import Client
+client = Client()
+
+#objects = client.list(prefix="forms/")
+#print(f"file_names: {file_names}")
+#tmp = jsonify({"stored_files": file_names})
+#file_names = [obj.name.replace("forms/", "") for obj in objects if obj.name != "forms/"]
+
+#listFiles = client.list(prefix="forms/")
+#print(f"listFiles: {listFiles}")
+#fileNames = [obj.name.replace("forms/", "") for obj in listFiles if obj.name != "forms/"]
+#jsonD = jsonify({"stored_files": fileNames})
+#print(f"jsonD: {jsonD}")
 
 import pytesseract
 
@@ -37,9 +51,12 @@ STORAGE_DIR = "bookingForm/forms/"
 os.makedirs(STORAGE_DIR, exist_ok=True)
 app.config['STORAGE_DIR'] = STORAGE_DIR
 
+TMP_DIR = "/tmp/"
+
 #DOWNLOAD_DIR = "Downloads/"  # ✅ Local storage directory
 #os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 #app.config['DOWNLOAD_DIR'] = DOWNLOAD_DIR
+
 
 from replit import db
 print(db.keys())  # ✅ See if "test.pdf" is stored
@@ -74,18 +91,17 @@ def encode_image(image_path):
     with open(image_path, "rb") as image_file:
         return base64.b64encode(image_file.read()).decode("utf-8")
 
-def extract_data_from_image(file_path):
+def extract_data_from_image(filename):
     try:
-        print(f"extract_data_from_image from: {file_path}")
-        #filename = request.form['filename']
-        #file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        #print(f"extract_data_from_image file_path: {file_path}")
-        base64_image = encode_image(file_path)
+        print(f"extract_data_from_image from: {filename}")
+        # The file is now in /bookingForm/forms/filename 
+        fullFilePath = os.path.join(app.config['STORAGE_DIR'], filename)
+        base64_image = encode_image(fullFilePath)
         print(f"extract_data_from_image base64_image: base64_image too big to print")
-        if os.path.exists(file_path):
+        if os.path.exists(fullFilePath):
             print("extract_data_from_image File exists, proceeding to encode.")
         else:
-            print(f"extract_data_from_image File not found at: {file_path}")
+            print(f"extract_data_from_image File not found at: {fullFilePath}")
             
         payload = {
             "model": "gpt-4o-mini",
@@ -141,34 +157,41 @@ def home():
         displayFilename = file.filename
         global workingFilename
         workingFilename = add_timestamp_to_filename(file.filename)
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], workingFilename))
+        ### file.save(os.path.join(app.config['UPLOAD_FOLDER'], workingFilename))
         loggerPerm.log(f"/home workingFilename: {workingFilename}")
-        
-        if file.filename.lower().endswith(".pdf"):
-            #print(f"/home file.filename.lower().endswith('.pdf'): {file.filename.lower().endswith}")
-            # Convert PDF to JPG
-            loggerPerm.log(f"Convert pdf {workingFilename}")
-            filePDF_path = os.path.join(app.config['UPLOAD_FOLDER'], workingFilename)
-            name, ext = workingFilename.rsplit(".", 1)
-            filenameJPG = f"{name}.jpg"
-            fileJPG_path = os.path.join(app.config['UPLOAD_FOLDER'], filenameJPG)
-            outputFolder = os.path.join(app.config['UPLOAD_FOLDER'])
-            #print(f"/home filePDF_path:{filePDF_path}, filenameJPG: {filenameJPG}, fileJPG_path:{fileJPG_path}, outputFolder:{outputFolder}")
-            
-            #print(f"/home about to convert_from_path with filePDF_path:{filePDF_path} to filenameJPG: {filenameJPG}")
-            fileJPG = convert_from_path(filePDF_path, output_folder= outputFolder, fmt="jpeg")
-            fileJPG[0].save(fileJPG_path)
-            workingFilename = filenameJPG
 
         # ✅ Save the file to Replit's persistent storage
         # file_path = os.path.join(STORAGE_DIR, file.filename)
-        file_path = os.path.join(STORAGE_DIR, workingFilename)
+        ## cc from above file.save(os.path.join(app.config['UPLOAD_FOLDER'], workingFilename))
+        file.seek(0)
+        file_path = os.path.join(app.config['STORAGE_DIR'], workingFilename)
         file.save(file_path)
-
+        print(f"Saved file to {file_path}")
+        
         # ✅ Store the file path in Replit DB (simulating object storage)
-        db[file.filename] = file_path  # Store file reference in Replit DB
-        loggerPerm.log(f"Stored file path in Replit DB file_path:{file_path}, file.filename: {file.filename} ")
-            
+        db[workingFilename] = file_path 
+        # db[file.filename] = file_path  # Store file reference in Replit DB
+        loggerPerm.log(f"Stored file path in Replit DB file_path:{file_path}, file.filename: {workingFilename} ")
+
+        if file.filename.lower().endswith(".pdf"):
+            print(f"/home endswith '.pdf' workingFilename:{workingFilename} ")
+            # Convert PDF to JPG
+            loggerPerm.log(f"Convert pdf {workingFilename}")
+            filePDF_path = os.path.join(app.config['STORAGE_DIR'], workingFilename)
+            name, ext = workingFilename.rsplit(".", 1)
+            filenameJPG = f"{name}.jpg"
+            fileJPG_path = os.path.join(app.config['STORAGE_DIR'], filenameJPG)
+            outputFolder = os.path.join(app.config['STORAGE_DIR'])
+            print(f"/home filePDF_path:{filePDF_path}, filenameJPG: {filenameJPG}, fileJPG_path:{fileJPG_path}, outputFolder:{outputFolder}")
+
+            print(f"/home about to convert_from_path with filePDF_path:{filePDF_path} to filenameJPG: {filenameJPG}")
+            fileJPG = convert_from_path(filePDF_path, output_folder= outputFolder, fmt="jpeg")
+            fileJPG[0].save(fileJPG_path)
+            workingFilename = filenameJPG
+            # store filepath/name in Replit DB (or lose track of it)
+            db[workingFilename] = fileJPG_path
+            print(f"Stored file path in Replit DB fileJPG_path:{fileJPG_path}")
+        
         loggerPerm.log(f"About to exit /home, with workingFilename:{workingFilename}")
         return render_template("home.html", uploaded=f"File '{displayFilename}' uploaded successfully.", json_data=None)
     return render_template("home.html", uploaded=None, json_data=None)
@@ -182,7 +205,7 @@ def extract_booking_data():
 
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], str(workingFilename))
     loggerPerm.log(f"/extract Processing file: {workingFilename}, path:{file_path}")
-    extracted_data = extract_data_from_image(file_path)
+    extracted_data = extract_data_from_image(workingFilename)
     # print(f"/extract extracted_data: {extracted_data}")
     
     # Convert the extracted data to a JSON string. json_data has an odd structure, so
@@ -202,6 +225,7 @@ def scoreResult():
     loggerPerm.log(f"/scoreResult for {workingFilename} score {score}")
     return render_template("home.html", user_score = score )
 
+## don't use this, use downloadToLocal
 @app.route("/download/<filename>")
 def download_file(filename):
     # Serve the file from the 'templates' directory
@@ -219,8 +243,55 @@ def downloadToLocal(filename):
     print(f"downloadToLocal called using STORAGE_DIR:{STORAGE_DIR}, filename:{filename}")
     if filename in db:
         # return send_from_directory(DOWNLOAD_DIR, filename, as_attachment=True)
-        return send_from_directory(STORAGE_DIR, filename, as_attachment=True)
-    return "❌ File not found matey", 404
+        # return send_from_directory(STORAGE_DIR, filename, as_attachment=True)
+        db_file_path = db.get(filename)
+        print(f"downloadToLocal db_file_path:{db_file_path}")
+        if db_file_path and os.path.exists(db_file_path):
+            return send_file(db_file_path, as_attachment=True)
+        else:
+            return abort(404, "❌ File not found in storage matey1")
+            
+    return "❌ File not found matey2", 404
+
+# needs to be called by curl
+# eg curl -X DELETE "https://tangobookingform.replit.app/delete/test225020511551561.jpg"
+@app.route("/delete/<filename>", methods=["DELETE"])
+def delete_file(filename):
+    """Delete a file from storage and remove its reference in Replit DB."""
+    if filename in db:
+        file_path = db[filename]
+
+        # ✅ Check if file exists before deleting
+        if os.path.exists(file_path):
+            os.remove(file_path)  # ✅ Delete the file
+            del db[filename]  # ✅ Remove reference from Replit DB
+            return jsonify({"message": f"✅ {filename} deleted successfully!"})
+        else:
+            del db[filename]  # ✅ Remove stale entry from DB
+            return jsonify({"error": "❌ File not found on disk, reference removed from DB"}), 404
+    else:
+        return jsonify({"error": "❌ File not found in database"}), 404
+
+@app.route("/tmpDownload/<filename>")
+def tmpDownload(filename):
+    """Serve a file from /tmp/ for download."""
+    file_path = os.path.join(TMP_DIR, filename)
+    if os.path.exists(file_path):
+        return send_file(file_path, as_attachment=True)
+    return jsonify({"error": "❌ File not found in /tmp/"}), 404
+
+# needs to be called via curl
+# eg curl -X DELETE "https://tangobookingform.replit.app/tmp-delete/log.txt
+@app.route("/tmp-delete/<filename>", methods=["DELETE"])
+def delete_tmp_file(filename):
+    """Delete a file from /tmp/."""
+    file_path = os.path.join(TMP_DIR, filename)
+
+    if os.path.exists(file_path):
+        os.remove(file_path)  # ✅ Delete the file
+        return jsonify({"message": f"✅ {filename} deleted from /tmp/!"})
+    else:
+        return jsonify({"error": "❌ File not found in /tmp/"}), 404
 
 if __name__ == '__main__':
   app.run(host='0.0.0.0', port=5000)

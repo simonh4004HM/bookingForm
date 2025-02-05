@@ -1,4 +1,3 @@
 Log File Created: 2025-01-29 15:15:39
 
 
-2025Feb05-08:43 Info: /extract_booking_data for simpleBookingFormV225020508430763.jpg

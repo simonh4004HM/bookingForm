@@ -17,6 +17,8 @@ from replit import db        # installed with shell> pip install replit
 from replit.object_storage import Client
 client = Client()
 
+## Main issue is mixing sessions - see https://stackoverflow.com/questions/32815451/are-global-variables-thread-safe-in-flask-how-do-i-share-data-between-requests 
+
 #objects = client.list(prefix="forms/")
 #print(f"file_names: {file_names}")
 #tmp = jsonify({"stored_files": file_names})

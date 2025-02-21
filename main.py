@@ -1,9 +1,11 @@
 from flask import Flask, render_template, request, flash, redirect, url_for, send_from_directory, jsonify, send_file
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import os
 import json
 import re
 import base64
+import traceback
 from datetime import datetime
 from PIL import Image
 import openai
@@ -12,6 +14,8 @@ from pdf2image import convert_from_path
 from modules.logger import Logger
 from modules.logger import PaperLog   
 from modules.logger import LoggerPerm
+from modules.logger import GoogleLog
+
 from replit import db        # installed with shell> pip install replit
 
 from replit.object_storage import Client
@@ -36,12 +40,22 @@ app = Flask(__name__)
 logger = Logger()
 # paperLog = PaperLog()
 
+CORS(app)  # Allow cross-origin requests
+
 # ✅ Create logger instance
 loggerPerm = LoggerPerm()
 
 # ✅ Use logger to write a log message
 loggerPerm.log("🚀 loggerPerm Application started successfully!")
 
+googleLog = GoogleLog(sheetName="logs", tabName="bookingForm")
+googleLog.log("Starting to log into sheets", sheetName="logs", tabName="bookingForm")
+
+#googleLog2 = GoogleLog()
+#googleLog2.log("default sheet is?")
+
+#googleLog3 = GoogleLog(sheetName="logs", tabName="test")
+#googleLog3.log("third entry for test", sheetName="logs", tabName="test")
 
 ALLOWED_EXTENSIONS = {'jpeg','jpg','pdf'}
 
@@ -52,6 +66,8 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 STORAGE_DIR = "bookingForm/forms/"
 os.makedirs(STORAGE_DIR, exist_ok=True)
 app.config['STORAGE_DIR'] = STORAGE_DIR
+
+API_SECRET_TOKEN = os.getenv("API_SECRET_TOKEN")
 
 TMP_DIR = "/tmp/"
 
@@ -312,5 +328,94 @@ def delete_tmp_file(filename):
     else:
         return jsonify({"error": "❌ File not found in /tmp/"}), 404
 
+@app.route("/upload-file", methods=["POST"])
+def upload_file():
+    loggerPerm.log("/upload-file START")
+
+    try:
+        # Validate the token
+        token = request.args.get("token")
+        if not token or token != API_SECRET_TOKEN:
+            loggerPerm.log("ERROR: Unauthorized access attempt")
+            return jsonify({"error": "Unauthorized access"}), 403
+
+        # Check if a file was uploaded
+        if "file" not in request.files:
+            loggerPerm.log("ERROR: No file uploaded")
+            return jsonify({"error": "No file uploaded"}), 400
+
+        file = request.files["file"]
+        if file.filename == "":
+            loggerPerm.log("ERROR: No file selected")
+            return jsonify({"error": "No file selected"}), 400
+
+        # Validate file type
+        valid = allowed_file(file.filename)
+        if not valid:
+            loggerPerm.log(f"ERROR: Invalid file type - {file.filename}")
+            return jsonify({"error": "Invalid file type. Only JPEG and PDF are allowed."}), 400
+
+        # Save the uploaded file
+        workingFilename = add_timestamp_to_filename(file.filename)
+        file_path = os.path.join(app.config['STORAGE_DIR'], workingFilename)
+
+        try:
+            file.save(file_path)
+            loggerPerm.log(f"Stored file in DB: {file_path}")
+            db[workingFilename] = file_path
+        except Exception as e:
+            loggerPerm.log(f"ERROR: Failed to save file - {str(e)}")
+            return jsonify({"error": "File saving failed"}), 500
+
+        # If it's a PDF, convert to JPG
+        if file.filename.lower().endswith(".pdf"):
+            try:
+                loggerPerm.log(f"Convert PDF {workingFilename} to JPG")
+
+                filePDF_path = os.path.join(app.config['STORAGE_DIR'], workingFilename)
+                name, ext = workingFilename.rsplit(".", 1)
+                filenameJPG = f"{name}.jpg"
+                fileJPG_path = os.path.join(app.config['STORAGE_DIR'], filenameJPG)
+                outputFolder = os.path.join(app.config['STORAGE_DIR'])
+
+                loggerPerm.log(f"File paths: PDF={filePDF_path}, JPG={fileJPG_path}, OutputFolder={outputFolder}")
+
+                # Convert PDF to JPG
+                fileJPG = convert_from_path(filePDF_path, output_folder=outputFolder, fmt="jpeg")
+                generated_files = [os.path.join(outputFolder, f) for f in os.listdir(outputFolder) if f.endswith(".jpg")]
+
+                if not fileJPG:
+                    loggerPerm.log(f"ERROR: PDF {workingFilename} conversion failed, no images generated.")
+                    return jsonify({"error": "PDF conversion failed"}), 500
+
+                fileJPG[0].save(fileJPG_path)
+                workingFilename = filenameJPG
+                db[workingFilename] = fileJPG_path
+                loggerPerm.log(f"Stored JPG in DB: {fileJPG_path}")
+
+            except Exception as e:
+                loggerPerm.log(f"ERROR: PDF to JPG conversion failed - {str(e)}\n{traceback.format_exc()}")
+                return jsonify({"error": "Failed to convert PDF to JPG"}), 500
+
+        # Extract data
+        try:
+            extracted_data = extract_data_from_image(workingFilename)
+            jsonStrConcat = re.search(r'\{.*\}', extracted_data, re.DOTALL)
+            jsonDict = json.loads(jsonStrConcat.group(0)) if jsonStrConcat else {}
+
+            loggerPerm.log(f"Extraction complete for {workingFilename}")
+        except Exception as e:
+            loggerPerm.log(f"ERROR: Data extraction failed - {str(e)}\n{traceback.format_exc()}")
+            return jsonify({"error": "Data extraction failed"}), 500
+
+        return jsonify({
+            "message": f"File '{workingFilename}' uploaded successfully.",
+            "extracted_data": jsonDict
+        })
+
+    except Exception as e:
+        loggerPerm.log(f"ERROR: Unexpected server error - {str(e)}\n{traceback.format_exc()}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
 if __name__ == '__main__':
-  app.run(host='0.0.0.0', port=5000)
+  app.run(host='0.0.0.0', port=8080)

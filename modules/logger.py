@@ -1,9 +1,60 @@
 import os
+import json
+import pdb
 import datetime
-import logging
-import logging.handlers
-import socket
 
+## Had to install this locally in shell using 'pip install openai'
+import openai
+import requests
+
+import gspread
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from google.oauth2.service_account import Credentials
+
+# print("logger.py loaded")
+
+class GoogleLog:
+    ## Note self.data has blank entries and voicemail entries
+    def __init__(self,sheetName="logs",tabName="test"):
+        
+        scope = [
+          "https://www.googleapis.com/auth/spreadsheets",
+          "https://www.googleapis.com/auth/drive"
+        ]
+
+        googleCredentials = os.getenv("GOOGLE_ACCESS")
+        if not googleCredentials:
+          raise ValueError("GOOGLE_ACCESS is not set in Replit Secrets!")
+
+        credentials_dict = json.loads(googleCredentials)
+        credentials = Credentials.from_service_account_info(credentials_dict, scopes=scope)
+        self.client = gspread.authorize(credentials)
+        sheet = self.client.open(sheetName)
+
+        bookingFormSheet = sheet.worksheet(tabName)
+        self.bookingFormSheet = bookingFormSheet; self.sheetName = sheetName; self.tabName = tabName
+        self.data = bookingFormSheet.get_all_records()
+        # print(f"googleAccess.init.self.data:{self.data}")
+
+        # available_tabs = [ws.title for ws in sheet.worksheets()]
+        # print(f"Available tabs: {available_tabs}")
+        # bookingFormSheet.update(range_name="A1:B2", values=[[1, 2], ["three", 4]])
+
+    def log(self, message, sheetName="logs", tabName="test"):
+        logSheet = self.client.open(sheetName).worksheet(tabName)
+        logSheet.append_row([datetime.datetime.now().strftime("%Y-%m-%d.%H:%M:%S"), message])
+
+    def getAllRows(self, sheetName="logs", tabName="test"):
+        logSheet = self.client.open(sheetName).worksheet(tabName)
+        allRows = logSheet.get_all_records()
+        return allRows
+
+# =========
+    
 class LoggerPerm:
     def __init__(self):
         # ✅ Get Replit's writable log path

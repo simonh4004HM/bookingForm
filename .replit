@@ -16,3 +16,7 @@ externalPort = 80
 
 [objectStorage]
 defaultBucketID = "replit-objstore-fea9ded0-63e7-4044-a3a2-08898782d123"
+
+[auth]
+pageEnabled = false
+buttonEnabled = false
